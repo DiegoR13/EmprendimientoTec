@@ -2,6 +2,19 @@ import cv2
 import imutils
 import pytesseract
 import openpyxl
+import getpass
+import oracledb
+
+#Input credentials and wallet documents to access de db
+connection = oracledb.connect(
+    user='admin',
+    password=')Distribucion4',
+    dsn='isr4lxwoxgglenv2_low',
+    config_dir='opt\OracleCloud\MYDB',
+    wallet_location='opt\OracleCloud\MYDB',
+    wallet_password=')Distribucion4'
+)
+
 pytesseract.pytesseract.tesseract_cmd = 'C:\Program Files\Tesseract-OCR\\tesseract'
 
 class plateDetection:
@@ -42,57 +55,43 @@ class plateDetection:
             platenw = plate.strip()
             print("Number plate is:", platenw)
 
+
             ### Revision en base de datos de placas ###
-            wb = openpyxl.load_workbook("DB_Clientes_Transportistas.xlsx")
-            ws = wb["Placas"]
             clientNum = "No client with those plates"
             clientName = "No client with those plates"
-            for rows in ws.iter_rows(min_row=1, min_col=3, max_col=3, max_row=40):
-                for cell in rows:
-                    if cell.value == platenw:
-                        rw = cell.row
-                        clientNum = ws.cell(row=rw, column = 1).value
-                        clientName = ws.cell(row=rw, column = 2).value
+
+            # Connect to the db and query our 3 client columns as an array called "row"
+            with connection.cursor() as cursor:
+                for row in cursor.execute('select numero_cliente, nombre_cliente, placas from clientes'):
+                    if row == platenw:
+                        clientNum = row[0]
+                        clientName = row[1]
             print("Client Number: ", clientNum)
             print("Client Name: ", clientName)
             
 
-            # ### Revision de Ordenes ###
+            ### Revision de Ordenes ###
             clientOrd = "No orders Registered to that client"
-            if clientNum != "No client with those plates":
-                wborden = openpyxl.load_workbook("DB_Clientes_NoOrden.xlsx")
-                wsorden = wborden["Ordenes"]
-                for rowsOrd in wsorden.iter_rows(min_row=1, min_col=1, max_col=1, max_row=40):
-                    for cellOrd in rowsOrd:
-                        rw = cellOrd.row
-                        ordStat = wsorden.cell(row=rw, column=4).value
-                        if (cellOrd.value == clientNum) and (ordStat == "Pendiente"):
-                            clientOrd = wsorden.cell(row=rw, column=3)
-                            clientOrd = clientOrd.value
-                            LDassigned = wsorden.cell(row=rw, column=5).value
-                            wsorden.cell(row=rw, column=4, value="En proceso")
-                            wborden.save("DB_Clientes_NoOrden.xlsx")
-                            wborden.close()
-                            self.Adeltante = True
+            if clientNum != 'No client with those plates':
+
+                # Query orders and assign values to variable for costumer
+                with connection.cursor() as cursor:
+                    for row in cursor.execute('select numero_cliente, nombre_cliente, numero_orden, estatus_orden, zona_carga from ordenes'):
+                        if (row[0] == clientNum) and (row[3] == 'Pendiente'):
+                            clientOrd = row[2]
+                            LDassigned = row[4]
+                            with connection.cursor() as cursor:
+                                cursor.execute(f"update ordenes set estatus_orden = 'En proceso' where numero_cliente = {row[0]}")
+                            Adelante = True
 
             if (self.Adeltante == True) and (clientOrd != "No orders Registered to that client"):
-                wbprocess = openpyxl.load_workbook("ProcessStatus.xlsx")
-                wsprocess = wbprocess["VirtualQueue"]
-                for rowsProc in wsprocess.iter_rows(min_row=2, min_col=1, max_col=1, max_row=40):
-                    for cellProc in rowsProc:
-                        rwProc = cellProc.row
-                        if cellProc.value == None :
-                            wsprocess.cell(row=rwProc, column=1, value=clientOrd)
-                            wsprocess.cell(row=rwProc, column=2, value=platenw)
-                            wsprocess.cell(row=rwProc, column=3, value="A Zona de Espera")
-                            wsprocess.cell(row=rwProc, column=4, value=LDassigned)
-                            wbprocess.save("ProcessStatus.xlsx")
-                            wbprocess.close()
-                            self.Adelante = False
-                            self.pasar = True
-                            break
-                    if self.pasar == True:
-                        self.pasar = False
-                        break
+                # Add order data to virtual queue
+                ## Check how to implement the first in first out functionality (it might already be implemented  tho)
+                with connection.cursor() as cursor:
+                        rows = [(clientOrd, platenw, 'A Zona de Espera', LDassigned)]
+                        cursor.executemany('insert into virtual_queue (numero_orden, placas, estatus, zona_carga) values(:1, :2, :3, :4)', rows)
+                connection.commit()
+                print('commmited changes')
+                self.Adelante = False
 
             print("Clients order Number: ", clientOrd)
