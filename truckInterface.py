@@ -644,6 +644,6 @@ while True:
             MW.update()
             Logistics().run()
             plateDetection().run()
-    except:
+    except: 
         MW.callback()
         exit()
