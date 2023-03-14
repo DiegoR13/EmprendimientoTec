@@ -30,40 +30,23 @@ class MainWindow(threading.Thread):
 
     def cargaCompleta (self, ZC):
         self.OrdersDone += 1
-        cortar = False
-        wbprocess = openpyxl.load_workbook("ProcessStatus.xlsx")
-        wsQ = wbprocess["VirtualQueue"]
-        name = "ZonaCarga"+str(ZC)
-        wsprocess = wbprocess[name]
-        wsprocess['B1'] = "Libre"
-        wsprocess['B2'] = "N/A"
-        wsprocess['B3'] = "N/A"
-        wsprocess['B4'] = "N/A"
-        for rows in wsQ.iter_rows(min_row=2, max_row=40, min_col=3, max_col=3):
-            for cell in rows:
-                rw = cell.row
-                assgLD = wsQ.cell(row=rw, column=4).value
-                if (cell.value == "En Zona de Carga") and (assgLD == ZC):
-                    orden = wsQ.cell(row=rw, column=1).value
-                    wsQ.delete_rows(rw,1)
-                    cortar = True
+        with connection.cursor() as cursor:
+            cursor.execute(f"update zona_de_carga set estado='Libre', orden_en_proceso=NULL, placas=NULL where zona = {ZC}")  
+            connection.commit()
+
+        with connection.cursor() as cursor:
+            for row in cursor.execute('select numero_orden, estatus, zona_carga from virtual_queue'):
+                if (row[1]=='En Zona De Carga') and (row[2] == ZC):
+                    orden = row[0]
+                    cursor.execute(f"delete from virtual_queue where numero_orden = '{orden}'")
+                    connection.commit()
                     break
-            if cortar == True:
-                break
-        wbprocess.save("ProcessStatus.xlsx")
-        wbprocess.close()
-        wbordenes = openpyxl.load_workbook("DB_Clientes_NoOrden.xlsx")
-        wsordenes = wbordenes["Ordenes"]
-        for rowsOr in wsordenes.iter_rows(min_row=2, max_row=40, min_col=3, max_col=3):
-            for cellOr in rowsOr:
-                rwOr = cellOr.row
-                if cellOr.value == orden:
-                    wsordenes.cell(row=rwOr, column=4, value="Completada")
-                    wsordenes.cell(row=rwOr, column=5, value=None)
-        wbordenes.save("DB_Clientes_NoOrden.xlsx")
-        wbordenes.close()
-
-
+                
+        with connection.cursor() as cursor:
+            for row in cursor.execute('select numero_orden from ordenes'):
+                if (row[0] == orden):
+                    cursor.execute(f"update ordenes set estatus='Completada', zona_carga=NULL where numero_orden='{orden}'")
+                    connection.commit()
 
 
     def warning(self):
