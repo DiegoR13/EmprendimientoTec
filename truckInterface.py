@@ -399,7 +399,7 @@ class MainWindow(threading.Thread):
                     self.truckLD[i].configure(image=self.imgempty)
                     self.LZFree[i]["state"] = 'disabled'
                 self.TextEstadoLD[i].set("Estado: " + row[0])
-                self.TextOrdenLD[i].set("Orden:" + str(row[1]))
+                self.TextOrdenLD[i].set("Orden: " + str(row[1]))
                 self.TextPlacasLD[i].set("Placas: " + str(row[2]))
                 if row[1] != "null":
                     self.botOrdenLD[i]["state"] = 'normal'
@@ -424,7 +424,7 @@ class MainWindow(threading.Thread):
                 self.TextSiguienteWZ[i].set("A Zona de Carga: "+ str(row[4]))
                 i+=1
       
-        self.OrdersPending = 0
+        self.OrdersPending = -1
         with connection.cursor() as cursor:
             for row in cursor.execute('select estatus_orden from ordenes'):
                 if (row[0]!="Completada"):
