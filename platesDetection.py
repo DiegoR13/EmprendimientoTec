@@ -82,7 +82,7 @@ class plateDetection:
                             LDassigned = row[4]
                             with connection.cursor() as cursor:
                                 cursor.execute(f"update ordenes set estatus_orden = 'En proceso' where numero_cliente = {row[0]}")
-                            Adelante = True
+                            self.Adelante = True
 
             if (self.Adeltante == True) and (clientOrd != "No orders Registered to that client"):
                 # Add order data to virtual queue

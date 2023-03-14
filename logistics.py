@@ -1,4 +1,16 @@
 import openpyxl
+import getpass
+import oracledb
+
+connection = oracledb.connect(
+    user='admin',
+    password=')Distribucion4',
+    dsn='isr4lxwoxgglenv2_low',
+    config_dir='opt\OracleCloud\MYDB',
+    wallet_location='opt\OracleCloud\MYDB',
+    wallet_password=')Distribucion4'
+)
+
 
 class Logistics:
     def __init__(self):
@@ -6,87 +18,47 @@ class Logistics:
         self.cortar = False
 
     def run(self):
-        wbordenes = openpyxl.load_workbook("DB_Clientes_NoOrden.xlsx")
-        wsOrdenes = wbordenes['Ordenes']
-        wbprocess = openpyxl.load_workbook("ProcessStatus.xlsx")
-        wsLD1 = wbprocess['ZonaCarga1']
-        wsLD2 = wbprocess['ZonaCarga2']
-        wsLD3 = wbprocess['ZonaCarga3']
-        wsLD4 = wbprocess['ZonaCarga4']
-        wsLD5 = wbprocess['ZonaCarga5']
-        wsLD6 = wbprocess['ZonaCarga6']
-        LDwsList = [wsLD1, wsLD2, wsLD3, wsLD4, wsLD5, wsLD6]
-        wsWZ = wbprocess['Espera']
-        wsQueue = wbprocess['VirtualQueue']
-        LD1status = wsLD1['B1'].value
-        LD2status = wsLD2['B1'].value
-        LD3status = wsLD3['B1'].value
-        LD4status = wsLD4['B1'].value
-        LD5status = wsLD5['B1'].value
-        LD6status = wsLD6['B1'].value
-        LDstatList = [LD1status, LD2status, LD3status, LD4status, LD5status, LD6status]
-        WZ1status = wsWZ['B2'].value
-        WZ2status = wsWZ['B3'].value
-        WZ3status = wsWZ['B4'].value
-        WZ4status = wsWZ['B5'].value
-        WZ5status = wsWZ['B6'].value
-        WZstatList = [WZ1status, WZ2status, WZ3status, WZ4status, WZ5status]
-        for rowsQ in wsQueue.iter_rows(min_row=2, min_col=3, max_col=3, max_row=40):
-            for cellQ in rowsQ:
-                rwQ = cellQ.row
-                if cellQ.value == "A Zona de Espera":
-                    assgndLD = wsQueue.cell(row=rwQ, column=4).value
-                    assgndLDl = assgndLD - 1
-                    orden = wsQueue.cell(row=rwQ, column= 1).value
-                    placas = wsQueue.cell(row=rwQ, column= 2).value
-                    if LDstatList[assgndLDl] == "Libre":
-                        cellQ.value = "En Zona de Carga"
-                        LDwsList[assgndLDl]['B1'] = "Cargando"
-                        LDwsList[assgndLDl]['B2'] = orden
-                        LDwsList[assgndLDl]['B3'] = placas
-                        wbprocess.save("ProcessStatus.xlsx")
-                        self.cortar = True
-                        break
-                    else:
-                        for i in WZstatList:
-                            if i == "Vacio":
-                                fila = WZstatList.index(i)+2
-                                cellQ.value = "En Zona de Espera"
-                                wsQueue.cell(row=rwQ, column=5, value=fila-1)
-                                wsWZ["B"+str(fila)] = "En Espera"
-                                wsWZ["C"+str(fila)] = orden
-                                wsWZ["D"+str(fila)] = placas
-                                wsWZ["E"+str(fila)] = assgndLD
-                                wbprocess.save("ProcessStatus.xlsx")
-                                self.cortar = True
+        with connection.cursor() as cursor:
+            for row in cursor.execute('select numero_orden, placas, estatus, zona_carga from virtual_queue'):
+                if row[2] == 'A Zona de Espera':
+                    orden = row[0]
+                    placas = row[1]
+                    assgnLD = row[3]
+                    for row1 in cursor.execute('select estado from zona_de_carga'):
+                        if row1[0] == 'Libre':
+                            cursor.execute(f"update virtual_queue set estatus = 'En Zona De Carga' where numero_orden = '{orden}'")
+                            connection.commit()
+                            sql = "update zona_de_carga set estado=:1, orden_en_proceso=:2, placas=:3 where zona=:4"
+                            row_carga = ('cargando', orden, placas, assgnLD)
+                            cursor.execute(sql, row_carga)
+                            connection.commit()
+                            self.cortar = True 
+
+                        else:
+                            for row2 in cursor.execute('select zona_espera, estado from zona_de_espera'):
+                                if row2[1] == 'Vacio':
+                                    assgndWZ = row[0]
+                                    cursor.execute(f"update virtual_queue set estatus = 'En Zona De Espera' where numero_orden = '{orden}'") 
+                                    row_espera = ('En Espera', orden, placas, assgndWZ, assgnLD)
+                                    cursor.execute('update zona_de_espera set estado=:1, orden=:2, placas=:3, zona_espera=:4 where zona_carga=:5', row_espera)
+                                    connection.commit()
+                                    self.cortar = True
+                                    break
+                            if self.cortar ==  True:
                                 break
-                            # else:
-                                #Este pedo esta lleno
-                        if self.cortar == True:
+                elif row[2] == 'En Zona de Espera':
+                    orden = row[0]
+                    placas = row[1]
+                    assgnLD = row[3]
+                    for row in cursor.execute(f'select estado from zona_de_carga where zona={assgnLD}'):
+                        if  row[0] == 'Libre':
+                            cursor.execute(f"update virtual_queue set estatus = 'En Zona De Carga' where numero_orden = '{orden}'")
+                            row_carga = ('cargando', orden, placas, assgnLD)
+                            cursor.execute('update zona_de_carga set estado=:1, orden_en_proceso=:2, placas=:3,  where zona=:4', row_carga)
+                            cursor.execute(f"update zona_de_espera set estado='Vacio', orden=NULL, placas=NULL, zona_carga=NULL where zona_espera={assgndWZ}")
+                            connection.commit()
+                            self.cortar = True
                             break
-                elif cellQ.value == "En Zona de Espera":
-                    assgndLD = wsQueue.cell(row=rwQ, column=4).value
-                    assgndLDl = assgndLD - 1
-                    orden = wsQueue.cell(row=rwQ, column= 1).value
-                    placas = wsQueue.cell(row=rwQ, column= 2).value
-                    assdWZ = wsQueue.cell(row=rwQ, column= 5).value
-                    if LDstatList[assgndLDl] == "Libre":
-                        cellQ.value = "En Zona de Carga"
-                        LDwsList[assgndLDl]['B1'] = "Cargando"
-                        LDwsList[assgndLDl]['B2'] = orden
-                        LDwsList[assgndLDl]['B3'] = placas
-                        wsWZ.cell(row=assdWZ+1, column=2, value="Vacio")
-                        wsWZ.cell(row=assdWZ+1, column=3, value="N/A")
-                        wsWZ.cell(row=assdWZ+1, column=4, value="N/A")
-                        wsWZ.cell(row=assdWZ+1, column=5, value="N/A")
-                        wsWZ.cell(row=assdWZ+1, column=6, value="N/A")
-                        wbprocess.save("ProcessStatus.xlsx")
-                        self.cortar = True
-                        break
-
-            if self.cortar == True:
-                self.cortar = False
-                break
-
-        wbordenes.close()
-        wbprocess.close()
+                if self.cortar ==  True:
+                    self.cortar = False
+                    break
