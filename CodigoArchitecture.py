@@ -122,7 +122,7 @@ while True:
 
                 peso_pedido = float(peso_arduino) - float(peso_inicial)
                 print("El peso de la carga en el camión con num_orden: ", orden, " con placas: ", placas, " es: ", peso_pedido, "\n")
-                if (peso_pedido >= float(peso_pedido_db) * 0.95 and peso_pedido <= float(peso_pedido_db) * 1.05):
+                if (peso_pedido >= float(peso_pedido_db) * 0.8 and peso_pedido <= float(peso_pedido_db) * 1.20):
                     print("La entrega cargada es correcta")
                     with connection.cursor() as cursor:
                         print("Update de la base de datos para el peso final \n")
@@ -140,3 +140,9 @@ while True:
                 # if (peso_arduino in gate_numbers):
                 #         print("Redo weight measurement")
                 #         continue
+## Pesos de los pedidos fake
+
+# airpods -> 40
+# pesita -> 200
+# pesita y airpods -> 240
+# pesita, crema, airpods -> 300
