@@ -74,10 +74,11 @@ while True:
 
                 # Query orders and assign values to variable for costumer
                 with connection.cursor() as cursor:
-                    for row in cursor.execute('select numero_cliente, nombre_cliente, numero_orden, estatus_orden, zona_carga from ordenes'):
+                    for row in cursor.execute('select numero_cliente, nombre_cliente, numero_orden, estatus_orden, zona_carga, peso_pedido from ordenes'):
                         if (row[0] == clientNum) and (row[3] == 'Pendiente'):
                             clientOrd = row[2]
                             LDassigned = row[4]
+                            pesoPedido = row[5]
                             with connection.cursor() as cursor:
                                 cursor.execute(f"update ordenes set estatus_orden = 'En proceso' where numero_orden = '{row[2]}'")
                             Adelante = True
@@ -88,8 +89,8 @@ while True:
                 # Add order data to virtual queue
                 ## Check how to implement the first in first out functionality (it might already be implemented  tho)
                 with connection.cursor() as cursor:
-                        rows = [(clientOrd, platenw, 'A Pesaje Inicial', LDassigned)]
-                        cursor.executemany('insert into virtual_queue (numero_orden, placas, estatus, zona_carga) values(:1, :2, :3, :4)', rows)
+                        rows = [(clientOrd, platenw, 'A Pesaje Inicial', LDassigned, pesoPedido)]
+                        cursor.executemany('insert into virtual_queue (numero_orden, placas, estatus, zona_carga, peso_pedido) values(:1, :2, :3, :4, :5)', rows)
                 connection.commit()
                 print('commmited changes')
                 Adelante = False
