@@ -93,19 +93,19 @@ void loop() {
   float mass = y1*ratio;
   
   Serial.println(String(mass - tara));
+
   delay(10000);
 
   if (Serial.available()) {
     if (msg != '\n' && msg != '\r'){  
       msg = Serial.read();
-      Serial.print("Puerta ingresada: ");
+      // Serial.print("Puerta ingresada: ");
       Serial.println(msg);
       }
   }
   // set the cursor to column 0, line 1
   // (note: line 1 is the second row, since counting begins with 0):
   //Serial.println(peso);
-
   
   delay(200);
   lcd.clear();
@@ -113,7 +113,13 @@ void loop() {
   mensaje = "Ir a puerta:";
   lcd.print(mensaje);
   lcd.setCursor(0, 1);
-  msg = msg-100;
+  if (msg > 100 && msg < 107) {
+    msg = msg-100;
+  }
+  
   lcd.print(msg);
+  if (Serial.available()) {
+    Serial.read();
+  }
   delay(200);
 }

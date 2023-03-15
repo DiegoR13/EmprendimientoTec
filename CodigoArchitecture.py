@@ -31,6 +31,10 @@ serialInst = serial.Serial()
 serialInst.baudrate = 9600
 serialInst.port = "COM4"
 
+## Preparación de mensaje a LCD
+
+letras = ["0", "e", "f", "g", "h", "i", "j"]
+
 ## Calibración de la báscula
 
 print("Calibración de la báscula")
@@ -45,77 +49,79 @@ time.sleep(2)
 
 ## General while True 
 while True:
-    try:
-        # kill program
-        if keyboard.is_pressed('q'):
-            break
-        with connection.cursor() as cursor:
-            for row in cursor.execute('select numero_orden, placas, estatus, zona_carga, zona_espera, peso_pedido, peso_final, peso_inicial from virtual_queue'):
-                #print("Estado actual :", row[2])
-                # Buscar si se tiene que pesar el camión 
-                # pesaje inicial del mismo
-                if row[2] == 'A Pesaje Inicial':
-                    # leer serial del Arduino para el valor del Peso 
-                    # inicial del camión
-                    orden = row[0]
-                    placas = row[1]
-                    print("Pesaje inicial del camión con placas :", placas, " y número de orden: ", orden, "\n")
+    with connection.cursor() as cursor:
+        for row in cursor.execute('select numero_orden, placas, estatus, zona_carga, peso_pedido, peso_final, peso_inicial from virtual_queue'):
+            # Buscar si se tiene que pesar el camión 
+            # pesaje inicial del mismo
+            if row[2] == 'A Pesaje Inicial':
+                # leer serial del Arduino para el valor del Peso 
+                # inicial del camión
+                print(row[0])
+                orden = row[0]
+                placas = row[1]
+                zona_carga = row[3]
+                print("Pesaje inicial del camión con placas :", placas, " y número de orden: ", orden, "\n")
 
-                    # Conexión al puerto Serial del Arduino
-                    # serialInst.open()
-                    print("Conexión al Arduino minus t-5 s")
-                    time.sleep(5)
-                    peso_arduino = serialInst.readline() # read Serial.print from arduino
-                    peso_arduino = peso_arduino.decode()
-                    peso_arduino = peso_arduino.rstrip()
-                    print("El peso inicial es : ", peso_arduino, "\n")
-                    time.sleep(2)
-                    # Cerrar conexión con el Arduino
-                    # serialInst.close()
+                # Conexión al puerto Serial del Arduino
+                # serialInst.open()
+                print("Conexión al Arduino minus t-5 s")
+                time.sleep(5)
+                peso_arduino = serialInst.readline() # read Serial.print from arduino
+                peso_arduino = peso_arduino.decode()
+                peso_arduino = peso_arduino.rstrip()
+                peso_arduino = str(peso_arduino)
+                print("El peso inicial es : ", peso_arduino, "\n")
+                time.sleep(2)
+                # Cerrar conexión con el Arduino
+                # serialInst.close()
 
-                    # Registrar en DB el peso_inicial
-                    # Cambiar Status a -> "A Zona De Espera"
+                # Registrar en DB el peso_inicial
+                # Cambiar Status a -> "A Zona De Espera"
 
-                    print("Update a la base de datos del peso inicial")
-                    cursor.execute(f"update virtual_queue set estatus = 'En Zona De Carga', peso_inicial = {peso_arduino} where numero_orden = '{orden}'") 
-                    # Commit de los datos a la Base de Datos
-                    connection.commit()
-                    time.sleep(5)
+                update_values = ('En Zona de Carga', peso_arduino, orden)
 
-                # Buscar si se tiene que pesar el camión
-                # pesaje final del mismo  
-                elif row[2] == 'A Pesaje Final':
-                    orden = row[0]
-                    placas = row[1]
-                    peso_inicial = row[7] 
-                    print("Pesaje final del camión con placas :", placas, " y número de orden: ", orden, "\n")
-                    # Conexión al puerto Serial del Arduino
-                    # serialInst.open()
-                    print("Conexión al Arduino")
-                    time.sleep(5)
-                    peso_arduino = serialInst.readline() # read Serial.print from arduino
-                    peso_arduino = peso_arduino.decode()
-                    peso_arduino = peso_arduino.rstrip()
-                    print("El peso final es : ", peso_arduino, "\n")
-                    time.sleep(2)
-                    # Cerrar conexión con el Arduino
-                    # serialInst.close()
-
-                    # Registrar en DB el peso_inicial
-                    # Cambiar Status a -> "A Zona De Espera"
-
-                    print("Update de la base de datos para el peso final")
+                print("Update a la base de datos del peso inicial")
+                if (float(peso_arduino) > 40): 
                     with connection.cursor() as cursor:
-                        cursor.execute(f"update virtual_queue set estatus = 'Salida', peso_final = {peso_arduino} where numero_orden = '{orden}'")
-                    # Commit de los datos a la Base de Datos
+                        cursor.execute(f"update virtual_queue set estatus = 'En Zona de Carga', peso_inicial = '{peso_arduino}' where numero_orden = '{orden}'") 
+                # Commit de los datos a la Base de Dato
+                        connection.commit()
+                lcd_msg = letras[zona_carga]
+                serialInst.write(lcd_msg.encode())
+                time.sleep(5)
+
+            # Buscar si se tiene que pesar el camión
+            # pesaje final del mismo  
+            elif row[2] == 'A Pesaje Final':
+                orden = row[0]
+                placas = row[1]
+                peso_inicial = row[7] 
+                print("Pesaje final del camión con placas :", placas, " y número de orden: ", orden, "\n")
+                # Conexión al puerto Serial del Arduino
+                # serialInst.open()
+                print("Conexión al Arduino")
+                time.sleep(5)
+                peso_arduino = serialInst.readline() # read Serial.print from arduino
+                peso_arduino = peso_arduino.decode()
+                peso_arduino = peso_arduino.rstrip()
+                peso_arduino = float(peso_arduino)
+                print("El peso final es : ", peso_arduino, "\n")
+                time.sleep(2)
+                # Cerrar conexión con el Arduino
+                # serialInst.close()
+
+                # Registrar en DB el peso_inicial
+                # Cambiar Status a -> "A Zona De Espera"
+
+                print("Update de la base de datos para el peso final")
+                with connection.cursor() as cursor:
+                    cursor.execute(f"update virtual_queue set estatus = 'Salida', peso_final = {peso_arduino} where numero_orden = '{orden}'")
+                # Commit de los datos a la Base de Datos
                     connection.commit()
-                    time.sleep(5)
+                time.sleep(5)
 
-                    diff_peso = peso_arduino - peso_inicial
-                    print("El peso de la carga en el camión con num_orden: ", orden, " con placas: ", placas, " es: ", diff_peso)   
-
-    except:
-        pass   
+                diff_peso = peso_arduino - peso_inicial
+                print("El peso de la carga en el camión con num_orden: ", orden, " con placas: ", placas, " es: ", diff_peso)    
 
 # #arduino = serial.Serial("COM5", 9600)
 # clientName=""
