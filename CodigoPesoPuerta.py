@@ -29,14 +29,14 @@ while True:
         #serialInst.close()
         #serialInst.open()
     if estado=="A Pesaje Final":
-    peso=""
-    time.sleep(3)
-    peso = serialInst.readline() #Esto nos va dar lo que este en el print del arduino, osea el peso
-    peso=peso.decode()
-    peso_final=peso.rstrip()
-    print(peso_final)
-    #serialInst.close()
-    #serialInst.open() 
+        peso_final=""
+        time.sleep(3)
+        peso = serialInst.readline() #Esto nos va dar lo que este en el print del arduino, osea el peso
+        peso=peso.decode()
+        peso_final=peso.rstrip()
+        print(peso_final)
+        #serialInst.close()
+        #serialInst.open() 
 
     puerta = "1" #Conectar el codigo de diego aqui para que nos de la puerta
     puertadisp="e"
