@@ -11,14 +11,13 @@ clientNum=""
 mensjeinicial=""
 serialInst=serial.Serial()
 serialInst.baudrate = 9600
-serialInst.port="COM6"
+serialInst.port="COM4"
 serialInst.open()
 
+switch = 1
+Puerta = ""
 
-switch=1
-Puerta=""
-
-while switch==1:
+while switch == 1:
     
     time.sleep(1)
     #insertar codigo de diego que tiene procesamiento de foto con la tecla Esto nos debe dar placas y registro (1/0)
@@ -44,8 +43,8 @@ while switch==1:
     #Mandamos la puerta al arduino
     
     #serialInst.open()
-    Puerta="f"
-    serialInst.write(Puerta.encode('utf-8'))
+    Puerta = "f"
+    serialInst.write(str(Puerta).encode())
     print("Ya envie el mensaje")
     #serialInst.close()
-    time.sleep(2)
+    time.sleep(5)
