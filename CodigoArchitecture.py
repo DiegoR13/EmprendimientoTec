@@ -87,7 +87,8 @@ while True:
                         ## Submit values to DB 
                         with connection.cursor() as cursor:
                             print("Update a la base de datos del peso inicial")
-                            cursor.execute(f"update virtual_queue set estatus = 'En Zona de Carga', peso_inicial = '{peso_arduino}' where numero_orden = '{orden}'") 
+                            cursor.execute(f"update virtual_queue set estatus = 'En Zona de Carga', peso_inicial = '{peso_arduino}' where numero_orden = '{orden}'")
+                            cursor.execute(f"update ordenes set peso_inicial = '{peso_arduino}' where numero_orden = '{orden}'") 
                             # Commit de los datos a la Base de Dato
                             connection.commit()
 
@@ -102,7 +103,9 @@ while True:
             elif row[2] == 'A Pesaje Final':
                 orden = row[0]
                 placas = row[1]
+                peso_pedido_db = row[4]
                 peso_inicial = row[6] 
+        
                 print("Pesaje final del camión con placas :", placas, " y número de orden: ", orden, "\n")
                
                 # Conexión al puerto Serial del Arduino
@@ -116,6 +119,13 @@ while True:
                 print("El peso final es : ", peso_arduino, "\n")
                 time.sleep(2)
 
+                peso_pedido = float(peso_arduino) - float(peso_inicial)
+                print("El peso de la carga en el camión con num_orden: ", orden, " con placas: ", placas, " es: ", peso_pedido, "\n")    
+                if (peso_pedido >= peso_pedido_db * 0.95 and peso_pedido <= peso_pedido_db * 1.05):
+                    print("La entrega cargada es correcta")
+                else:
+                    print("Warning ! Peso incorrecto")
+
                 if (peso_arduino in gate_numbers):
                         print("Redo weight measurement")
                         continue
@@ -123,10 +133,7 @@ while True:
                     with connection.cursor() as cursor:
                         print("Update de la base de datos para el peso final \n")
                         cursor.execute(f"update virtual_queue set estatus = 'Salida', peso_final = {peso_arduino} where numero_orden = '{orden}'")
+                        cursor.execute(f"update ordenes set peso_final = '{peso_arduino}' where numero_orden = '{orden}'")
                         # Commit de los datos a la Base de Datos
                         connection.commit()
-
-                peso_pedido = float(peso_arduino) - float(peso_inicial)
-                print("El peso de la carga en el camión con num_orden: ", orden, " con placas: ", placas, " es: ", peso_pedido, "\n")    
-
                 time.sleep(5)
