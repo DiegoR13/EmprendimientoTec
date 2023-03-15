@@ -114,7 +114,7 @@ void loop() {
   lcd.print(mensaje);
   lcd.setCursor(0, 1);
   if (msg > 100 && msg < 107) {
-    msg = msg-100;
+    msg = msg - 100;
   }
   
   lcd.print(msg);
