@@ -87,7 +87,7 @@ while True:
                         ## Submit values to DB 
                         with connection.cursor() as cursor:
                             print("Update a la base de datos del peso inicial")
-                            cursor.execute(f"update virtual_queue set estatus = 'En Zona de Carga', peso_inicial = '{peso_arduino}' where numero_orden = '{orden}'")
+                            cursor.execute(f"update virtual_queue set estatus = 'A Zona de Espera', peso_inicial = '{peso_arduino}' where numero_orden = '{orden}'")
                             cursor.execute(f"update ordenes set peso_inicial = '{peso_arduino}' where numero_orden = '{orden}'") 
                             # Commit de los datos a la Base de Dato
                             connection.commit()
