@@ -16,7 +16,7 @@ connection = oracledb.connect(
 )
 
 pytesseract.pytesseract.tesseract_cmd = 'C:\Program Files\Tesseract-OCR\\tesseract'
-Adeltante = False
+Adelante = False
 pasar = False
 cap = cv2.VideoCapture(0)
 
@@ -61,7 +61,7 @@ while True:
             # Connect to the db and query our 3 client columns as an array called "row"
             with connection.cursor() as cursor:
                 for row in cursor.execute('select numero_cliente, nombre_cliente, placas from clientes'):
-                    if row == platenw:
+                    if row[2] == platenw:
                         clientNum = row[0]
                         clientName = row[1]
             print("Client Number: ", clientNum)
@@ -79,10 +79,12 @@ while True:
                             clientOrd = row[2]
                             LDassigned = row[4]
                             with connection.cursor() as cursor:
-                                cursor.execute(f"update ordenes set estatus_orden = 'En proceso' where numero_cliente = {row[0]}")
+                                cursor.execute(f"update ordenes set estatus_orden = 'En proceso' where numero_orden = '{row[2]}'")
                             Adelante = True
 
-            if (Adeltante == True) and (clientOrd != "No orders Registered to that client"):
+            ### Comentado para evitar sobreescribir. Si es necesario para el funcionamiento ###
+            # print(Adelante, clientOrd)
+            if (Adelante == True) and (clientOrd != "No orders Registered to that client"):
                 # Add order data to virtual queue
                 ## Check how to implement the first in first out functionality (it might already be implemented  tho)
                 with connection.cursor() as cursor:

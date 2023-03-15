@@ -3,7 +3,6 @@ from tkinter import ttk
 from tkinter import messagebox
 import time
 import threading
-import openpyxl
 from PIL import ImageTk, Image
 from datetime import datetime
 import oracledb
@@ -28,38 +27,27 @@ class MainWindow(threading.Thread):
 
     def cargaCompleta (self, ZC):
         self.OrdersDone += 1
-        cortar = False
-        wbprocess = openpyxl.load_workbook("ProcessStatus.xlsx")
-        wsQ = wbprocess["VirtualQueue"]
-        name = "ZonaCarga"+str(ZC)
-        wsprocess = wbprocess[name]
-        wsprocess['B1'] = "Libre"
-        wsprocess['B2'] = "N/A"
-        wsprocess['B3'] = "N/A"
-        wsprocess['B4'] = "N/A"
-        for rows in wsQ.iter_rows(min_row=2, max_row=40, min_col=3, max_col=3):
-            for cell in rows:
-                rw = cell.row
-                assgLD = wsQ.cell(row=rw, column=4).value
-                if (cell.value == "En Zona de Carga") and (assgLD == ZC):
-                    orden = wsQ.cell(row=rw, column=1).value
-                    wsQ.delete_rows(rw,1)
-                    cortar = True
+        orden = None
+        with connection.cursor() as cursor:
+            cursor.execute(f"update zona_de_carga set estado='Libre', orden_en_proceso=NULL, placas=NULL where zona = {ZC}")  
+            connection.commit()
+
+        with connection.cursor() as cursor:
+            for row in cursor.execute('select numero_orden, estatus, zona_carga from virtual_queue'):
+                if (row[1]=='En Zona De Carga') and (row[2] == ZC):
+                    orden = row[0]
+                    cursor.execute(f"delete from virtual_queue where numero_orden = '{orden}'")
+                    connection.commit()
                     break
-            if cortar == True:
-                break
-        wbprocess.save("ProcessStatus.xlsx")
-        wbprocess.close()
-        wbordenes = openpyxl.load_workbook("DB_Clientes_NoOrden.xlsx")
-        wsordenes = wbordenes["Ordenes"]
-        for rowsOr in wsordenes.iter_rows(min_row=2, max_row=40, min_col=3, max_col=3):
-            for cellOr in rowsOr:
-                rwOr = cellOr.row
-                if cellOr.value == orden:
-                    wsordenes.cell(row=rwOr, column=4, value="Completada")
-                    wsordenes.cell(row=rwOr, column=5, value=None)
-        wbordenes.save("DB_Clientes_NoOrden.xlsx")
-        wbordenes.close()
+                
+        with connection.cursor() as cursor:
+            for row in cursor.execute('select numero_orden from ordenes'):
+                if (row[0] == orden):
+                    cursor.execute(f"update ordenes set estatus_orden ='Completada', zona_carga=NULL where numero_orden='{orden}'")
+                    connection.commit()
+        
+
+            
 
 
 
@@ -197,9 +185,13 @@ class MainWindow(threading.Thread):
         sep2_7.grid(row = 0, column = 4, rowspan = 7, sticky=N+S+W)
         sep2_8.grid(row = 0, column = 5, rowspan = 7, sticky=N+S+W)
 
-        self.LZFree = [0 for i in range(6)]
+        self.LZFree = [Button(self.frame2, text=("Carga Completa 1"), font=("Verdana",13, 'bold'), borderwidth=4, bg='#f9e000', state='disabled', command=lambda: self.cargaCompleta(1)),
+                       Button(self.frame2, text=("Carga Completa 2"), font=("Verdana",13, 'bold'), borderwidth=4, bg='#f9e000', state='disabled', command=lambda: self.cargaCompleta(2)),
+                       Button(self.frame2, text=("Carga Completa 3"), font=("Verdana",13, 'bold'), borderwidth=4, bg='#f9e000', state='disabled', command=lambda: self.cargaCompleta(3)),
+                       Button(self.frame2, text=("Carga Completa 4"), font=("Verdana",13, 'bold'), borderwidth=4, bg='#f9e000', state='disabled', command=lambda: self.cargaCompleta(4)),
+                       Button(self.frame2, text=("Carga Completa 5"), font=("Verdana",13, 'bold'), borderwidth=4, bg='#f9e000', state='disabled', command=lambda: self.cargaCompleta(5)),
+                       Button(self.frame2, text=("Carga Completa 6"), font=("Verdana",13, 'bold'), borderwidth=4, bg='#f9e000', state='disabled', command=lambda: self.cargaCompleta(6))]
         for i in range(6):
-            self.LZFree[i] = Button(self.frame2, text="Carga Completa", font=("Verdana",13, 'bold'), borderwidth=4, bg='#f9e000', state='disabled', command=lambda: self.cargaCompleta(i+1))
             self.LZFree[i].grid(column=i, row=6, pady=10)
         
         self.imgtruck = ImageTk.PhotoImage(Image.open("truck.png").resize((148,68)))
@@ -287,21 +279,11 @@ class MainWindow(threading.Thread):
         # self.tiempoLD5.grid(column=4, row=5, sticky=W, padx=5)
         # self.tiempoLD6.grid(column=5, row=5, sticky=W, padx=5)
 
-        self.truck1WZ = Label(self.frame3, image=self.imgempty, bg='#242529')
-        self.truck2WZ = Label(self.frame3, image=self.imgempty, bg='#242529')
-        self.truck3WZ = Label(self.frame3, image=self.imgempty, bg='#242529')
-        self.truck4WZ = Label(self.frame3, image=self.imgempty, bg='#242529')
-        self.truck5WZ = Label(self.frame3, image=self.imgempty, bg='#242529')
-        self.truck1WZ.image = self.imgempty
-        self.truck2WZ.image = self.imgempty
-        self.truck3WZ.image = self.imgempty
-        self.truck4WZ.image = self.imgempty
-        self.truck5WZ.image = self.imgempty
-        self.truck1WZ.grid(column=0, row=1)
-        self.truck2WZ.grid(column=1, row=1)
-        self.truck3WZ.grid(column=2, row=1)
-        self.truck4WZ.grid(column=3, row=1)
-        self.truck5WZ.grid(column=4, row=1)
+        self.truckWZ = [0 for i in range(5)]
+        for i in range(5):
+            self.truckWZ[i] = Label(self.frame3, image=self.imgempty, bg='#242529')
+            self.truckWZ[i].image = self.imgempty
+            self.truckWZ[i].grid(column=i, row=1)
 
 
         self.TextEstadoWZ = [StringVar() for i in range(5)]
@@ -398,33 +380,31 @@ class MainWindow(threading.Thread):
                 else:
                     self.truckLD[i].configure(image=self.imgempty)
                     self.LZFree[i]["state"] = 'disabled'
-                self.TextEstadoLD[i].set("Estado: " + row[0])
-                self.TextOrdenLD[i].set("Orden: " + str(row[1]))
+                self.TextEstadoLD[i].set("Estado " + row[0])
+                self.TextOrdenLD[i].set("Orden:" + str(row[1]))
                 self.TextPlacasLD[i].set("Placas: " + str(row[2]))
                 if row[1] != "null":
                     self.botOrdenLD[i]["state"] = 'normal'
                 else:
                     self.botOrdenLD[i]["state"] = 'disabled'
-                # print(i)
-                # print(row[0])
-                # print(row[1])
                 i+=1
                 
         i = 0
         with connection.cursor() as cursor:
             for row in cursor.execute('select zona_espera, estado, orden, placas, zona_carga from zona_de_espera'):
-                if row[1] == "En Espera":
-                    self.truck1WZ.configure(image=self.imgtruck)
+                if row[1] == 'En Espera':
+                    self.truckWZ[i].configure(image=self.imgtruck)
                 else:
-                    self.truck1WZ.configure(image=self.imgempty)
+                    self.truckWZ[i].configure(image=self.imgempty)
         
                 self.TextEstadoWZ[i].set("Estado: " + row[1])
                 self.TextOrdenWZ[i].set("Orden: " + str(row[2]))
                 self.TextPlacasWZ[i].set("Placas: " + str(row[3]))
                 self.TextSiguienteWZ[i].set("A Zona de Carga: "+ str(row[4]))
                 i+=1
+                
       
-        self.OrdersPending = -1
+        self.OrdersPending = 0
         with connection.cursor() as cursor:
             for row in cursor.execute('select estatus_orden from ordenes'):
                 if (row[0]!="Completada"):
