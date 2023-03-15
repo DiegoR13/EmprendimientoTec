@@ -118,6 +118,7 @@ void loop() {
   }
   
   lcd.print(msg);
+  // limpiar el buffer
   if (Serial.available()) {
     Serial.read();
   }

@@ -80,7 +80,7 @@ while True:
 
                 if (float(peso_arduino) > 40): 
                     #check if the Serial msg is still the gate number
-                    if (peso_arduino in gate_numbers):
+                    if (float(peso_arduino) in gate_numbers):
                         print("Redo weight measurement")
                         continue
                     else:
@@ -106,12 +106,13 @@ while True:
                 peso_pedido_db = row[4]
                 peso_inicial = row[6] 
         
-                print("Pesaje final del camión con placas :", placas, " y número de orden: ", orden, "\n")
+                print("Pesaje final del camión con placas :", placas, " y número de orden: ", orden)
+                print("Peso del pedido ", peso_pedido_db, "\n")
                
                 # Conexión al puerto Serial del Arduino
                 # serialInst.open()
-                print("Conexión al Arduino")
-                time.sleep(5)
+                print("Conexión al Arduino t-10 s")
+                time.sleep(10)
                 peso_arduino = serialInst.readline() # read Serial.print from arduino
                 peso_arduino = peso_arduino.decode()
                 peso_arduino = peso_arduino.rstrip()
@@ -120,20 +121,22 @@ while True:
                 time.sleep(2)
 
                 peso_pedido = float(peso_arduino) - float(peso_inicial)
-                print("El peso de la carga en el camión con num_orden: ", orden, " con placas: ", placas, " es: ", peso_pedido, "\n")    
-                if (peso_pedido >= peso_pedido_db * 0.95 and peso_pedido <= peso_pedido_db * 1.05):
+                print("El peso de la carga en el camión con num_orden: ", orden, " con placas: ", placas, " es: ", peso_pedido, "\n")
+                if (peso_pedido >= float(peso_pedido_db) * 0.95 and peso_pedido <= float(peso_pedido_db) * 1.05):
                     print("La entrega cargada es correcta")
-                else:
-                    print("Warning ! Peso incorrecto")
-
-                if (peso_arduino in gate_numbers):
-                        print("Redo weight measurement")
-                        continue
-                else:
                     with connection.cursor() as cursor:
                         print("Update de la base de datos para el peso final \n")
                         cursor.execute(f"update virtual_queue set estatus = 'Salida', peso_final = {peso_arduino} where numero_orden = '{orden}'")
                         cursor.execute(f"update ordenes set peso_final = '{peso_arduino}' where numero_orden = '{orden}'")
+                        print("Borrando el camión de la fila virtual \n")
+                        cursor.execute(f"delete from virtual_queue where numero_orden = '{orden}'")
                         # Commit de los datos a la Base de Datos
                         connection.commit()
-                time.sleep(5)
+                        time.sleep(5)
+                else:
+                    print("Warning ! Peso incorrecto")
+                    continue
+
+                # if (peso_arduino in gate_numbers):
+                #         print("Redo weight measurement")
+                #         continue
