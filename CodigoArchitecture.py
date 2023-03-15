@@ -127,7 +127,7 @@ while True:
                     with connection.cursor() as cursor:
                         print("Update de la base de datos para el peso final \n")
                         cursor.execute(f"update virtual_queue set estatus = 'Salida', peso_final = {peso_arduino} where numero_orden = '{orden}'")
-                        cursor.execute(f"update ordenes set peso_final = '{peso_arduino}' where numero_orden = '{orden}'")
+                        cursor.execute(f"update ordenes set peso_final = '{peso_arduino}', estatus_orden = 'Completada' where numero_orden = '{orden}'")
                         print("Borrando el camión de la fila virtual \n")
                         cursor.execute(f"delete from virtual_queue where numero_orden = '{orden}'")
                         # Commit de los datos a la Base de Datos
