@@ -5,6 +5,7 @@ import time
 import threading
 from PIL import ImageTk, Image
 from datetime import datetime
+import os
 import oracledb
 
 connection = oracledb.connect(
@@ -28,29 +29,45 @@ class MainWindow(threading.Thread):
     def cargaCompleta (self, ZC):
         self.OrdersDone += 1
         orden = None
+        ciclo = True
         with connection.cursor() as cursor:
             cursor.execute(f"update zona_de_carga set estado='Libre', orden_en_proceso=NULL, placas=NULL where zona = {ZC}")  
             connection.commit()
 
-        with connection.cursor() as cursor:
-            for row in cursor.execute('select numero_orden, estatus, zona_carga from virtual_queue'):
-                if (row[1]=='En Zona De Carga') and (row[2] == ZC):
-                    orden = row[0]
-                    cursor.execute(f"delete from virtual_queue where numero_orden = '{orden}'")
-                    connection.commit()
-                    break
+        ### Borra la orden del virtual queue ###
+        # with connection.cursor() as cursor:
+        #     for row in cursor.execute('select numero_orden, estatus, zona_carga from virtual_queue'):
+        #         if (row[1]=='En Zona De Carga') and (row[2] == ZC):
+        #             orden = row[0]
+        #             cursor.execute(f"delete from virtual_queue where numero_orden = '{orden}'")
+        #             connection.commit()
+        #             break
+        
+        while ciclo == True:
+            try:
+                with connection.cursor() as cursor:
+                    for row in cursor.execute('select numero_orden, estatus, zona_carga from virtual_queue'):
+                        if (row[1]=='En Zona De Carga') and (row[2] == ZC):
+                            orden = row[0]
+                            print(orden)
+                            cursor.execute(f"update virtual_queue set estatus='A Pesaje Final' where numero_orden = '{orden}'")
+                            connection.commit()
+                            ciclo = False
+            except:
+                pass
                 
         with connection.cursor() as cursor:
             for row in cursor.execute('select numero_orden from ordenes'):
                 if (row[0] == orden):
-                    cursor.execute(f"update ordenes set estatus_orden ='Completada', zona_carga=NULL where numero_orden='{orden}'")
+                    cursor.execute(f"update ordenes set estatus_orden ='Saliendo', zona_carga=NULL where numero_orden='{orden}'")
                     connection.commit()
         
-
-            
-
-
-
+    def mostrarOrden(self, ZC):
+        with connection.cursor() as cursor:
+            for row in cursor.execute(f'select orden_en_proceso from zona_de_carga where zona = {ZC}'):
+                orden = row[0]
+        os.system("Ordenes" + "\\"+ orden + ".pdf")
+        
 
     def warning(self):
         warnWin = messagebox.askokcancel(title="Program Stopped", message="The STOP button was pressed. Do you want to quit the program?", icon='warning')
@@ -239,7 +256,12 @@ class MainWindow(threading.Thread):
         self.ordenLD6.grid(column=5, row=3, sticky=W, padx=5)
 
 
-        self.botOrdenLD = [Button(self.frame2, text='*', font=("Verdana", 10, 'bold'), state='disabled') for i in range(6)]
+        self.botOrdenLD = [Button(self.frame2, text='*', font=("Verdana", 10, 'bold'), state='disabled', command= lambda: self.mostrarOrden(1)),
+                           Button(self.frame2, text='*', font=("Verdana", 10, 'bold'), state='disabled', command= lambda: self.mostrarOrden(2)),
+                           Button(self.frame2, text='*', font=("Verdana", 10, 'bold'), state='disabled', command= lambda: self.mostrarOrden(3)),
+                           Button(self.frame2, text='*', font=("Verdana", 10, 'bold'), state='disabled', command= lambda: self.mostrarOrden(4)),
+                           Button(self.frame2, text='*', font=("Verdana", 10, 'bold'), state='disabled', command= lambda: self.mostrarOrden(5)),
+                           Button(self.frame2, text='*', font=("Verdana", 10, 'bold'), state='disabled', command= lambda: self.mostrarOrden(6))]
         for i in range(6):
             self.botOrdenLD[i].grid(column=i, row=3, sticky=E, padx=5, pady=5)
 
@@ -260,24 +282,6 @@ class MainWindow(threading.Thread):
         self.placasLD4.grid(column=3, row=4, sticky=W, padx=5)
         self.placasLD5.grid(column=4, row=4, sticky=W, padx=5)
         self.placasLD6.grid(column=5, row=4, sticky=W, padx=5)
-
-
-        # self.TextTiempoLD = [StringVar() for i in range(6)]
-        # for i in range(6):
-        #     self.TextTiempoLD[i].set("Tiempo Restante: N/A")
-
-        # self.tiempoLD1 = Label(self.frame2, textvariable=self.TextTiempoLD[0], font=("Verdana",13), bg='#242529', fg='white')
-        # self.tiempoLD2 = Label(self.frame2, textvariable=self.TextTiempoLD[1], font=("Verdana",13), bg='#242529', fg='white')
-        # self.tiempoLD3 = Label(self.frame2, textvariable=self.TextTiempoLD[2], font=("Verdana",13), bg='#242529', fg='white')
-        # self.tiempoLD4 = Label(self.frame2, textvariable=self.TextTiempoLD[3], font=("Verdana",13), bg='#242529', fg='white')
-        # self.tiempoLD5 = Label(self.frame2, textvariable=self.TextTiempoLD[4], font=("Verdana",13), bg='#242529', fg='white')
-        # self.tiempoLD6 = Label(self.frame2, textvariable=self.TextTiempoLD[5], font=("Verdana",13), bg='#242529', fg='white')
-        # self.tiempoLD1.grid(column=0, row=5, sticky=W, padx=5)
-        # self.tiempoLD2.grid(column=1, row=5, sticky=W, padx=5)
-        # self.tiempoLD3.grid(column=2, row=5, sticky=W, padx=5)
-        # self.tiempoLD4.grid(column=3, row=5, sticky=W, padx=5)
-        # self.tiempoLD5.grid(column=4, row=5, sticky=W, padx=5)
-        # self.tiempoLD6.grid(column=5, row=5, sticky=W, padx=5)
 
         self.truckWZ = [0 for i in range(5)]
         for i in range(5):
@@ -383,7 +387,7 @@ class MainWindow(threading.Thread):
                 self.TextEstadoLD[i].set("Estado " + row[0])
                 self.TextOrdenLD[i].set("Orden:" + str(row[1]))
                 self.TextPlacasLD[i].set("Placas: " + str(row[2]))
-                if row[1] != "null":
+                if row[1] != None:
                     self.botOrdenLD[i]["state"] = 'normal'
                 else:
                     self.botOrdenLD[i]["state"] = 'disabled'

@@ -11,7 +11,6 @@ connection = oracledb.connect(
     wallet_password=')Distribucion4'
 )
 
-Lleno = False
 cortar = False
 
 while True:
@@ -59,7 +58,6 @@ while True:
                     with connection.cursor() as cursor:
                         for row in cursor.execute(f'select estado from zona_de_carga where zona={assgnLD}'):
                             if  row[0] == 'Libre':
-                                
                                 cursor.execute(f"update virtual_queue set estatus = 'En Zona De Carga' where numero_orden = '{orden}'")
                                 row_carga = ('Cargando', orden, placas, assgnLD)
                                 cursor.execute('update zona_de_carga set estado=:1, orden_en_proceso=:2, placas=:3 where zona=:4', row_carga)

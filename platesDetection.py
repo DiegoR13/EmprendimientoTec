@@ -68,7 +68,7 @@ while True:
             print("Client Name: ", clientName)
             
 
-            ### Revision de Ordenes ###
+            # ### Revision de Ordenes ###
             clientOrd = "No orders Registered to that client"
             if clientNum != 'No client with those plates':
 
@@ -88,7 +88,7 @@ while True:
                 # Add order data to virtual queue
                 ## Check how to implement the first in first out functionality (it might already be implemented  tho)
                 with connection.cursor() as cursor:
-                        rows = [(clientOrd, platenw, 'A Zona de Espera', LDassigned)]
+                        rows = [(clientOrd, platenw, 'A Pesaje Inicial', LDassigned)]
                         cursor.executemany('insert into virtual_queue (numero_orden, placas, estatus, zona_carga) values(:1, :2, :3, :4)', rows)
                 connection.commit()
                 print('commmited changes')
