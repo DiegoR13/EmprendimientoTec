@@ -4,7 +4,9 @@ import serial.tools.list_ports
 
 ports=serial.tools.list_ports.comports()
 
-peso=0
+peso=""
+peso_inicial=""
+peso_final=""
 #estado=""
 
 numo=""
@@ -17,15 +19,24 @@ while True:
     serialInst.baudrate = 9600
     serialInst.port="COM6"
     serialInst.open()
-    if estado=="a pesaje inicial":
-        peso=""
+    if estado=="A Pesaje Inicial":
+        peso_inicial=""
         time.sleep(3)
         peso = serialInst.readline() #Esto nos va dar lo que este en el print del arduino, osea el peso
         peso=peso.decode()
-        pesoinicial=peso.rstrip()
-        print(pesoinicial)
+        peso_inicial=peso.rstrip()
+        print(peso_inicial)
         #serialInst.close()
         #serialInst.open()
+    if estado=="A Pesaje Final":
+    peso=""
+    time.sleep(3)
+    peso = serialInst.readline() #Esto nos va dar lo que este en el print del arduino, osea el peso
+    peso=peso.decode()
+    peso_final=peso.rstrip()
+    print(peso_final)
+    #serialInst.close()
+    #serialInst.open() 
 
     puerta = "1" #Conectar el codigo de diego aqui para que nos de la puerta
     puertadisp="e"
@@ -35,7 +46,3 @@ while True:
     #serialInst.close()
     time.sleep(2)
     estado=""
-
-
-
-
